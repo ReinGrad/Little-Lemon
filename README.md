@@ -38,4 +38,4 @@
    python manage.py runserver
    ```
 
-> If MySQL variables are not provided, the project falls back to SQLite (`db.sqlite3`) for local development.
+> SQLite fallback is only used when **all** `DB_*` variables are unset. If some (but not all) are set, startup fails fast with a configuration error.

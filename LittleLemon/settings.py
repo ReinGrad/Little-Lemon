@@ -81,18 +81,27 @@ WSGI_APPLICATION = 'LittleLemon.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-if all(
-    os.getenv(var)
-    for var in ('DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT')
-):
+DB_ENV_VARS = ('DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT')
+db_config = {var: os.getenv(var) for var in DB_ENV_VARS}
+provided_db_vars = {var for var, value in db_config.items() if value}
+
+if provided_db_vars and provided_db_vars != set(DB_ENV_VARS):
+    missing_db_vars = sorted(set(DB_ENV_VARS) - provided_db_vars)
+    raise ValueError(
+        'Partial database configuration detected. '
+        'Set all DB_* variables for MySQL or leave all unset for SQLite fallback. '
+        f'Missing: {", ".join(missing_db_vars)}'
+    )
+
+if provided_db_vars:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.getenv('DB_NAME'),
-            'USER': os.getenv('DB_USER'),
-            'PASSWORD': os.getenv('DB_PASSWORD'),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT'),
+            'NAME': db_config['DB_NAME'],
+            'USER': db_config['DB_USER'],
+            'PASSWORD': db_config['DB_PASSWORD'],
+            'HOST': db_config['DB_HOST'],
+            'PORT': db_config['DB_PORT'],
             'OPTIONS': {
                 'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             },
