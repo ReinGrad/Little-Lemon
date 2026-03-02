@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-vx13(5&xzydyi63x2*=!m28pjdyiil#kv0$#j!72x_@a6s_59t'
+SECRET_KEY = os.getenv(
+    'SECRET_KEY',
+    'django-insecure-local-dev-only-change-me',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes', 'on')
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -77,19 +81,39 @@ WSGI_APPLICATION = 'LittleLemon.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-    'ENGINE': 'django.db.backends.mysql',
-    'NAME': 'LittleLemon',
-    'USER': 'root',
-    'PASSWORD': '153',
-    'HOST': '127.0.0.1',
-    'PORT': '3306',
-    'OPTIONS': {
-        'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-        }
+DB_ENV_VARS = ('DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT')
+db_config = {var: os.getenv(var) for var in DB_ENV_VARS}
+provided_db_vars = {var for var, value in db_config.items() if value}
+
+if provided_db_vars and provided_db_vars != set(DB_ENV_VARS):
+    missing_db_vars = sorted(set(DB_ENV_VARS) - provided_db_vars)
+    raise ValueError(
+        'Partial database configuration detected. '
+        'Set all DB_* variables for MySQL or leave all unset for SQLite fallback. '
+        f'Missing: {", ".join(missing_db_vars)}'
+    )
+
+if provided_db_vars:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': db_config['DB_NAME'],
+            'USER': db_config['DB_USER'],
+            'PASSWORD': db_config['DB_PASSWORD'],
+            'HOST': db_config['DB_HOST'],
+            'PORT': db_config['DB_PORT'],
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        },
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        },
+    }
 
 
 DJOSER={"USER_ID_FIELD":"test"}
